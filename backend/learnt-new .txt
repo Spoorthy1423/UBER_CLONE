@@ -1,2 +1,3 @@
 cors is cross origin resource sharing, it is a security feature implemented in web browsers to control how browsers constrol resources on a
 server can be accessed from a different origin
+express validator provides a set of middleware functions to validate and sanitize request data like res, req, next
