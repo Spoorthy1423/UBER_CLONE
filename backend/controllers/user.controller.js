@@ -1,45 +1,39 @@
 const userModel = require('../models/user.model');
 const userService = require('../services/user.service');
 const { validationResult } = require('express-validator');
+const blackListTokenModel = require('../models/blackListToken.model');
 
-
-module.exports.registerUser = async (req, res) => {
+module.exports.registerUser = async (req, res, next) => {
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    try {
-        const { fullname, email, password } = req.body;
+    const { fullname, email, password } = req.body;
 
-        // Check if the email already exists
-        const existingUser = await userModel.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({
-                message: 'Email already exists',
-            });
-        }
+    const isUserAlready = await userModel.findOne({ email });
 
-        // Hash the password
-        const hashedPassword = await userModel.hashedPassword(password);
-
-        // Create a new user
-        const newUser = new userModel({ fullname, email, password: hashedPassword });
-        await newUser.save();
-
-        res.status(201).json({
-            message: 'User registered successfully',
-            user: newUser,
-        });
-    } catch (error) {
-        res.status(500).json({
-            message: 'Error creating user',
-            error: error.message,
-        });
+    if (isUserAlready) {
+        return res.status(400).json({ message: 'User already exist' });
     }
 
+    const hashedPassword = await userModel.hashedPassword(password);
+
+    const user = await userService.createUser({
+        firstname: fullname.firstname,
+        lastname: fullname.lastname,
+        email,
+        password: hashedPassword
+    });
+
+    const token = user.generateAuthToken();
+
+    res.status(201).json({ token, user });
+
+
 }
+
 module.exports.loginUser = async (req, res, next) => {
 
     const errors = validationResult(req);
@@ -62,12 +56,13 @@ module.exports.loginUser = async (req, res, next) => {
     }
 
     const token = user.generateAuthToken();
+
     res.cookie('token', token);
 
     res.status(200).json({ token, user });
 }
 
-module.exports.getUserProfile = async (req, res) => {
+module.exports.getUserProfile = async (req, res, next) => {
 
     res.status(200).json(req.user);
 
